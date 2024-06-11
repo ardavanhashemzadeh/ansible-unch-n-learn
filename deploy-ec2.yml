@@ -10,7 +10,15 @@
         region: "{{ awsregion }}"
         state: present
       register: vpc
-    - debug: { msg: "{{ vpc }}" }
+#    - debug: { msg: "{{ vpc }}" }
+
+    - name: Create Internet Gateway
+      amazon.aws.ec2_vpc_igw:
+        region: "{{ awsregion }}"
+        vpc_id: "{{ vpc.vpc.id }}"
+        state: present
+      register: igw_result
+#    - debug: msg="{{ igw_result }}"
 
     - name: Create subnet
       ec2_vpc_subnet:
@@ -19,15 +27,7 @@
         region: "{{ awsregion }}"
         state: present
       register: subnet
-    - debug: { msg: "{{ subnet }}" }
-
-    - name: Create Internet Gateway
-      amazon.aws.ec2_vpc_igw:
-        region: "{{ awsregion }}"
-        vpc_id: "{{ vpc.vpc.id }}"
-        state: present
-      register: igw_result
-    - debug: msg="{{ igw_result }}"
+#    - debug: { msg: "{{ subnet }}" }
 
     - name: Create Route to Internet Gateway
       ec2_vpc_route_table:
@@ -39,6 +39,10 @@
         routes:
           - dest: 0.0.0.0/0
             gateway_id: "{{ igw_result.gateway_id }}"
+        tags:
+          Name: "{{ vpcname }}"
+      register: igw
+#    - debug: { msg: "{{ igw }}" }
 
     - name: Create Security Group
       amazon.aws.ec2_security_group:
@@ -50,10 +54,12 @@
           - proto: tcp
             ports:
               - 22
+              - 80
+              - 443
             cidr_ip: 0.0.0.0/0
         state: present
       register: sg_result
-    - debug: msg="{{ sg_result }}"
+#    - debug: msg="{{ sg_result }}"
 
     - name: Create EC2 Key Pair
       amazon.aws.ec2_key:
@@ -62,7 +68,7 @@
         state: present
         file_name: "{{ lookup('env', 'HOME') }}/.ssh/{{ keyname }}.pem"
       register: keypair_result
-    - debug: { msg: "{{ keypair_result }}" }
+#    - debug: { msg: "{{ keypair_result }}" }
 
     - name: Launch EC2 instance
       ec2_instance:
@@ -73,40 +79,59 @@
         security_group: "{{ sgname }}"
         network:
           assign_public_ip: True
-        image_id: ami-0f58aa386a2280f35
+        image_id: "{{ image_id }}"
         region: "{{ awsregion }}"
         state: present
       register: ec2_instance
-    - debug: { msg: "{{ ec2_instance }}" }
+#    - debug: { msg: "{{ ec2_instance }}" }
 
-- name: Add newly created EC2 host to inventory
-  hosts: localhost
-  tasks:
-    - name: Add new host
+    - name: Add host entry to SSH config
+      blockinfile:
+        path: "{{ lookup('env', 'HOME') }}/.ssh/config"
+        append_newline: True
+        prepend_newline: True
+        block: |
+          Host {{ ec2_instance.instances[0].network_interfaces[0].association.public_ip }}
+            HostName {{ ec2_instance.instances[0].network_interfaces[0].association.public_ip }}
+            User {{ ansible_user }}
+            IdentityFile {{ lookup('env', 'HOME') }}/.ssh/{{ keyname }}.pem
+
+    - name: Add newly created host to current running inventory
       add_host:
-        hostname: "{{ hostvars['localhost']['ec2_instance']['instances'][0]['network_interfaces'][0]['association']['public_ip'] }}"
-        ansible_host: "{{ hostvars['localhost']['ec2_instance']['instances'][0]['network_interfaces'][0]['association']['public_ip'] }}"
-        ansible_user: "{{ ansible_user }}"
-        private_key: "{{ lookup('env', 'HOME') }}/.ssh/{{ keyname }}.pem"
+        hostname: "{{ ec2_instance.instances[0].network_interfaces[0].association.public_ip }}"
 
-- name: Wait for port 22 to become open
-  hosts: localhost
-  tasks:
-    - ansible.builtin.wait_for:
-        host: "{{ hostvars['localhost']['ec2_instance']['instances'][0]['network_interfaces'][0]['association']['public_ip'] }}"
-        port: 22
-        delay: 10
+    - name: Create {{ record-type }} DNS record for {{ host }}.{{ domain_name }} pointing to {{ record }}
+      uri:
+        url: "https://api.cloudns.net/dns/add-record.json"
+        method: POST
+        return_content: yes
+        body_format: form-urlencoded
+        body:
+          auth-id: "{{ cloudns_user }}"
+          auth-password: "{{ cloudns_pass }}"
+          domain-name: "{{ domain_name }}"
+          record-type: "{{ record_type }}"
+          host: "{{ host }}"
+          record: "{{ record }}"
+          ttl: 3600
+      register: api_response
 
-- name: Install Nginx
+- name: Install Nginx, setup DNS and SSL
   become: yes
   hosts: "{{ hostvars['localhost']['ec2_instance']['instances'][0]['network_interfaces'][0]['association']['public_ip'] }}"
   tasks:
-    - name: Install Nginx
-      yum:
+    - ansible.builtin.wait_for:
+        port: 22
+        delay: 10
+
+    - name: Update package cache
+      apt:
+        update_cache: yes
+
+    - name: Install NGINX
+      apt:
         name: nginx
         state: present
-      register: instll
-    - debug: { msg: "{{ instll }}" }
 
     - name: Start Nginx
       service:
@@ -114,4 +139,4 @@
         state: started
         enabled: yes
       register: srvc
-    - debug: { msg: "{{ srvc }}" }
+#    - debug: { msg: "{{ srvc }}" }

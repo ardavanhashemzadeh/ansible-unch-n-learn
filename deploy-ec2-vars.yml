@@ -1,7 +1,8 @@
+### AWS ###
 instance_name: ansible_lunch_learn_demo
 sgname: "{{ instance_name }}"
 instance_type: t4g.nano
-image_id: 
+image_id: ami-0f58aa386a2280f35 # debian
 cidrvpc: "10.0.0.0/16"
 cidrsubnet: "10.0.1.0/24"
 ansible_user: admin
@@ -9,3 +10,13 @@ awsregion: us-east-1
 keyname: "{{ instance_name }}"
 ec2name: "{{ instance_name }}"
 vpcname: "{{ instance_name }}"
+
+### ClouDNS ###
+cloudns_user:
+cloudns_pass:
+domain_name:
+record_type:
+host:
+record:
+
+### LetsEncrypt ###

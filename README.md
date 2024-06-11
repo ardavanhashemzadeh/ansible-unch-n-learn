@@ -18,6 +18,10 @@
     g. Playbook
     h. Collection
 
-BasicInstall: https://ansible.readthedocs.io/projects/awx-operator/en/latest/installation/basic-install.html
+```
 
+```
+https://ansible.readthedocs.io/projects/awx-operator/en/latest/installation/basic-install.html
+https://docs.ansible.com/ansible-core/2.17/getting_started/index.html
+https://github.com/ardavanhashemzadeh/ansible-unch-n-learn
 ```
