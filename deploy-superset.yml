@@ -1,0 +1,52 @@
+---
+- name: Install and Configure Apache Superset
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Install required packages
+      apt:
+        name:
+          - python3-pip
+          - python3-dev
+          - build-essential
+        state: present
+
+    - name: Install Apache Superset using pip
+      pip:
+        name: apache-superset
+        executable: pip3
+        state: present
+
+    - name: Initialize the Superset database
+      command: superset db upgrade
+      args:
+        chdir: /path/to/superset/installation
+
+    - name: Set environment variables
+      lineinfile:
+        path: ~/.bashrc
+        line: 'export FLASK_APP=superset'
+        state: present
+
+    - name: Create an admin user
+      command: superset fab create-admin
+      args:
+        chdir: /path/to/superset/installation
+
+    - name: Create a systemd service for Superset
+      template:
+        src: superset.service.j2
+        dest: /etc/systemd/system/superset.service
+      notify: Reload systemd
+
+    - name: Start and enable the Superset service
+      systemd:
+        name: superset
+        enabled: yes
+        state: started
+
+  handlers:
+    - name: Reload systemd
+      systemd:
+        daemon_reload: yes

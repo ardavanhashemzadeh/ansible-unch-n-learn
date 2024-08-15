@@ -1,5 +1,5 @@
 ---
-- name: Create EC2 Key Pair, VPC, Subnet
+- name: Create VPC, Gateway, Subnet, Route, Security Group, KeyPair, EC2 instance and DNS record
   hosts: localhost
   gather_facts: no
   tasks:
@@ -10,7 +10,7 @@
         region: "{{ awsregion }}"
         state: present
       register: vpc
-#    - debug: { msg: "{{ vpc }}" }
+    - debug: { msg: "{{ vpc }}" }
 
     - name: Create Internet Gateway
       amazon.aws.ec2_vpc_igw:
@@ -18,7 +18,7 @@
         vpc_id: "{{ vpc.vpc.id }}"
         state: present
       register: igw_result
-#    - debug: msg="{{ igw_result }}"
+    - debug: msg="{{ igw_result }}"
 
     - name: Create subnet
       ec2_vpc_subnet:
@@ -27,7 +27,7 @@
         region: "{{ awsregion }}"
         state: present
       register: subnet
-#    - debug: { msg: "{{ subnet }}" }
+    - debug: { msg: "{{ subnet }}" }
 
     - name: Create Route to Internet Gateway
       ec2_vpc_route_table:
@@ -42,7 +42,7 @@
         tags:
           Name: "{{ vpcname }}"
       register: igw
-#    - debug: { msg: "{{ igw }}" }
+    - debug: { msg: "{{ igw }}" }
 
     - name: Create Security Group
       amazon.aws.ec2_security_group:
@@ -59,7 +59,7 @@
             cidr_ip: 0.0.0.0/0
         state: present
       register: sg_result
-#    - debug: msg="{{ sg_result }}"
+    - debug: { msg: "{{ sg_result }}" }
 
     - name: Create EC2 Key Pair
       amazon.aws.ec2_key:
@@ -68,7 +68,7 @@
         state: present
         file_name: "{{ lookup('env', 'HOME') }}/.ssh/{{ keyname }}.pem"
       register: keypair_result
-#    - debug: { msg: "{{ keypair_result }}" }
+    - debug: { msg: "{{ keypair_result }}" }
 
     - name: Launch EC2 instance
       ec2_instance:
@@ -83,7 +83,7 @@
         region: "{{ awsregion }}"
         state: present
       register: ec2_instance
-#    - debug: { msg: "{{ ec2_instance }}" }
+    - debug: { msg: "{{ ec2_instance }}" }
 
     - name: Add host entry to SSH config
       blockinfile:
@@ -116,8 +116,9 @@
           ttl: 3600
       register: api_response
 
-- name: Install Nginx, setup DNS and SSL
-  become: yes
+
+- name: Install nginx
+  become: True
   hosts: "{{ hostvars['localhost']['ec2_instance']['instances'][0]['network_interfaces'][0]['association']['public_ip'] }}"
   tasks:
     - ansible.builtin.wait_for:
@@ -140,3 +141,25 @@
         enabled: yes
       register: srvc
 #    - debug: { msg: "{{ srvc }}" }
+
+- name: Deploy this presentation to the newly setup host
+  hosts: "{{ hostvars['localhost']['ec2_instance']['instances'][0]['network_interfaces'][0]['association']['public_ip'] }}"
+  become: yes
+
+  tasks:
+    - name: Remove default HTML folder
+      ansible.builtin.file:
+        path: /var/www/html
+        state: absent
+
+    - name: Clone repository into default HTML folder location
+      git:
+        repo: https://github.com/ardavanhashemzadeh/ansible-superset.git
+        dest: /var/www/html
+        force: yes
+
+    - name: Set permissions for the cloned directory
+      ansible.builtin.file:
+        path: /var/www/html
+        owner: www-data
+        group: www-data
