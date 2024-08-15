@@ -112,9 +112,11 @@
           domain-name: "{{ domain_name }}"
           record-type: "{{ record_type }}"
           host: "{{ host }}"
-          record: "{{ record }}"
+          record: "{{ ec2_instance.instances[0].network_interfaces[0].association.public_ip }}"
           ttl: 3600
       register: api_response
+      tags: [ dns ]
+    - debug: { msg: "{{ api_response }}" }
 
 
 - name: Install nginx
@@ -154,7 +156,7 @@
 
     - name: Clone repository into default HTML folder location
       git:
-        repo: https://github.com/ardavanhashemzadeh/ansible-superset.git
+        repo: https://github.com/ardavanhashemzadeh/ansible-unch-n-learn.git
         dest: /var/www/html
         force: yes
 
