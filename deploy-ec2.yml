@@ -22,7 +22,7 @@
     - debug: msg="{{ igw_result }}"
 
     - name: Create subnet
-      ec2_vpc_subnet:
+      amazon.aws.ec2_vpc_subnet:
         vpc_id: "{{ vpc.vpc.id }}"
         cidr: "{{ cidrsubnet }}"
         region: "{{ awsregion }}"
@@ -31,7 +31,7 @@
     - debug: { msg: "{{ subnet }}" }
 
     - name: Create Route to Internet Gateway
-      ec2_vpc_route_table:
+      amazon.aws.ec2_vpc_route_table:
         vpc_id: "{{ vpc.vpc.id }}"
         region: "{{ awsregion }}"
         subnets:
