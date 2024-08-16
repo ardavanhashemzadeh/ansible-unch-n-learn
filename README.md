@@ -21,6 +21,12 @@
 ```
 
 ```
+https://ansible.readthedocs.io/projects/awx-operator/en/latest/installation/basic-install.html
+https://docs.ansible.com/ansible-core/2.17/getting_started/index.html
+https://github.com/ardavanhashemzadeh/ansible-unch-n-learn
+```
+
+```
 echo '- src: idealista.superset_role
   scm: git
   version: 1.1.0
@@ -33,10 +39,4 @@ echo '---
     - role: superset_role
 ' > install_superset.yml
 ansible-playbook install_superset.yml -b -i INVENTORY
-```
-
-```
-https://ansible.readthedocs.io/projects/awx-operator/en/latest/installation/basic-install.html
-https://docs.ansible.com/ansible-core/2.17/getting_started/index.html
-https://github.com/ardavanhashemzadeh/ansible-unch-n-learn
 ```
